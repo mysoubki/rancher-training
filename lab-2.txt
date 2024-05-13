@@ -1,0 +1,56 @@
+############### Setup ssh config ###############
+
+ssh-keygen -t rsa -b 4096
+cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+
+############### Setup RKE cluster ###############
+
+curl -L https://github.com/rancher/rke/releases/download/v1.5.8/rke_linux-amd64 -o rke
+chmod +x rke
+mv rke /usr/local/bin/
+mkdir /root/.kube
+vi cluster.yml
+
+----------------------------------
+cluster_name: lab-rke-cluster
+ignore_docker_version: true
+nodes:
+  - address: 20.64.242.46
+    user: root
+    role: [controlplane, etcd, worker]
+    ssh_key_path: "/root/.ssh/id_rsa"
+    port: 22
+services:
+  etcd:
+    snapshot: true
+    creation: 6h
+    retention: 24h
+
+  kube-api:
+    service_cluster_ip_range: 10.43.0.0/16
+    pod_security_policy: false
+
+  kube-controller:
+    cluster_cidr: 10.42.0.0/16
+    service_cluster_ip_range: 10.43.0.0/16
+
+  kubelet:
+    cluster_dns_server: 10.43.0.10
+
+network:
+  plugin: canal
+
+authentication:
+  strategy: x509
+
+ssh_agent_auth: false
+----------------------------------
+
+rke up
+cp kube_config_cluster.yml /root/.kube/conf
+
+############### Setup Kubectl utility ###############
+
+curl -LO https://dl.k8s.io/release/v1.28.8/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+mv ./kubectl /usr/local/bin/kubectl

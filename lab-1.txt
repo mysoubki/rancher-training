@@ -1,0 +1,71 @@
+############### VMs ###############
+20.106.221.60
+172.210.153.182
+20.38.32.156
+40.81.225.72
+52.162.249.153
+20.64.242.46
+
+############### Installation docker version 24.0.9 ###############
+
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+VERSION_STRING=5:24.0.9-1~ubuntu.22.04~jammy
+sudo apt-get install docker-ce=$VERSION_STRING docker-ce-cli=$VERSION_STRING containerd.io docker-buildx-plugin docker-compose-plugin
+
+
+############### Generate CA ceritificate ###############
+
+mkdir ca
+cd ca
+openssl genrsa -out ca.key 2048
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 1024 -out ca.pem
+
+############### Generate Rancher Server certificate ###############
+
+mkdir rancher-cert
+cd rancher-cert
+create file openssl.conf:
+-------------------------
+[ req ]
+default_bits       = 2048
+default_keyfile    = tls.key
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+
+[ req_distinguished_name ]
+countryName                = Country Name (2 letter code)
+countryName_default        = MA
+organizationName           = Organization Name (eg, company)
+organizationName_default   = Rancher Training
+commonName                 = Common Name (e.g. server FQDN or YOUR name)
+commonName_default         = RANCHER-SERVER
+commonName_max             = 64
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1   = rancher.training.com
+DNS.2   = rancher.training.local
+-------------------------
+openssl genrsa -out tls.key 2048
+openssl req -new -key tls.key -out rancher.csr -config openssl.conf
+openssl x509 -req -in rancher.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out server.pem -days 500 -sha256
+openssl rsa -in tls.key -out tls.pem
+include the full certificate chain
+
+############### Launch docker command ###############
+docker run -d --name rancher_server --restart=unless-stopped -p 80:80 -p 443:443 -v /etc/rancher/ssl/tls.pem:/etc/rancher/ssl/cert.pem -v /etc/rancher/ssl/tls.key:/etc/rancher/ssl/key.pem --privileged rancher/rancher --no-cacerts
+docker logs rancher_server 2>&1 | grep "Bootstrap Password:"
