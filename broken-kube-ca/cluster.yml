@@ -1,0 +1,16 @@
+nodes:
+  - address: 20.64.242.46
+    internal_address: 20.64.242.46
+    user: root
+    hostname_override: a1ublabet01
+    role: [controlplane,worker,etcd]
+
+ingress:
+  provider: nginx
+
+services:
+  etcd:
+    backup_config:
+      enabled: true
+      interval_hours: 12
+      retention: 6
