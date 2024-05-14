@@ -4,7 +4,7 @@ nodes:
     user: root
     hostname_override: a1ublabet01
     role: [controlplane,worker,etcd]
-
+ignore-docker-version: true
 ingress:
   provider: nginx
 
