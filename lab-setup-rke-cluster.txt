@@ -1,0 +1,55 @@
+############### Clean the host ###############
+
+docker rm $(docker ps -a -q) -f
+docker rmi $(docker images -a -q) -f
+
+############### Setup ssh config ###############
+
+ssh-keygen -t rsa -b 4096 (ne pas ajouter un mot de passe pour la clé)
+cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+
+############### Setup RKE cluster ###############
+
+curl -L https://github.com/rancher/rke/releases/download/v1.5.8/rke_linux-amd64 -o rke
+chmod +x rke
+mv rke /usr/local/bin/
+vi cluster.yml
+
+----------------------------------
+cluster_name: cluster-1
+kubernetes_version: v1.26.15-rancher1-1
+nodes:
+  - address: 20.64.242.46
+    hostname_override: cluster-1-all-in-one
+    user: root
+    role:
+      - controlplane
+      - worker
+      - etcd
+ingress:
+  provider: nginx
+
+services:
+  kube-api:
+    audit_log:
+      enabled: true
+  etcd:
+    backup_config:
+      enabled: true
+      interval_hours: 3
+      retention: 72
+
+dns:
+  provider: coredns
+----------------------------------
+
+rke up
+
+
+############### Setup Kubectl utility ###############
+
+curl -LO https://dl.k8s.io/release/v1.26.15/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+mv ./kubectl /usr/local/bin/kubectl
+mkdir /root/.kube
+cp kube_config_cluster.yml /root/.kube/config
